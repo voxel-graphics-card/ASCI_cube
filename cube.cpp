@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <windows.h> // For Sleep()
+#include <windows.h> // For Sleep(), HANDLE, COORD, DWORD, CONSOLE_SCREEN_BUFFER_INFO, SetConsoleCursorPosition, FillConsoleOutputCharacter, GetConsoleScreenBufferInfo, GetStdHandle
 
 // --- Constants ---
 constexpr int WIDTH = 80;
@@ -34,9 +34,37 @@ float calculateY(float i, float j, float k);
 float calculateZ(float i, float j, float k);
 void calculateForSurface(float cube_x, float cube_y, float cube_z, char ch);
 
+// Function to clear the console screen using Windows API
+void clearScreen()
+{
+    HANDLE hStdOut;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD count;
+    COORD homeCoords = {0, 0};
+
+    hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hStdOut == INVALID_HANDLE_VALUE) return;
+
+    // Get the number of character cells in the current buffer
+    if (!GetConsoleScreenBufferInfo(hStdOut, &csbi)) return;
+    DWORD cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+
+    // Fill the entire buffer with spaces
+    if (!FillConsoleOutputCharacter(
+        hStdOut,
+        (TCHAR) BACKGROUND_ASCII_CODE,
+        cellCount,
+        homeCoords,
+        &count
+    )) return;
+
+    // Move the cursor to the top-left corner
+    SetConsoleCursorPosition(hStdOut, homeCoords);
+}
+
 int main()
 {
-    std::cout << "\x1b[2J";
+    clearScreen(); // Clear the screen once at the beginning
 
     while (true)
     {
@@ -69,8 +97,10 @@ int main()
         }
         // --- END REVISED CUBE SURFACE DRAWING LOOP ---
 
+        // Move cursor to home position for overwriting (replaces "\x1b[H")
+        COORD homeCoords = {0, 0};
+        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), homeCoords);
 
-        std::cout << "\x1b[H";
         for (int k = 0; k < AREA; ++k)
         {
             std::cout << (k % WIDTH ? buffer[k] : '\n');
@@ -78,7 +108,7 @@ int main()
 
         A += INCREMENT_ANGLE;
         B += INCREMENT_ANGLE;
-        // C += INCREMENT_ANGLE;
+        C += INCREMENT_ANGLE;
 
         Sleep(SLEEP_TIME_MS);
     }
@@ -113,7 +143,7 @@ void calculateForSurface(float cube_x, float cube_y, float cube_z, char ch)
 
     ooz = 1.0f / z;
 
-    xp = static_cast<int>(WIDTH / 2.0f + K1 * ooz * x * 2.0f);
+    xp = static_cast<int>(WIDTH / 2.0f + K1 * ooz * x * 2.0f); // Scaling X by 2.0f for aspect ratio
     yp = static_cast<int>(HEIGHT / 2.0f + K1 * ooz * y);
 
     idx_buffer = xp + yp * WIDTH;
